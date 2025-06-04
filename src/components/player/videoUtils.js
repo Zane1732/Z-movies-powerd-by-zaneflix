@@ -45,35 +45,54 @@ export async function fetchVidSrcContent(id, episode, season, type) {
     const streamResponse = await fetch(config.proxy, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       },
       body: JSON.stringify({
         url: apiUrl,
-        method: 'GET'
+        method: 'GET',
+        headers: {
+          'Referer': 'https://player.vidsrc.co/',
+          'Origin': 'https://player.vidsrc.co'
+        }
       })
     });
     
+    if (!streamResponse.ok) {
+      throw new Error(`HTTP error! status: ${streamResponse.status}`);
+    }
+    
     const responseData = await streamResponse.json();
     
+    if (!responseData) {
+      throw new Error('Empty response from server');
+    }
+    
     if (responseData && responseData.data) {
-      const decodedData = atob(responseData.data);
-      const encryptedData = JSON.parse(decodedData);
-      
-      const decryptedData = decryptWithPassword(encryptedData);
-      const streamData = JSON.parse(decryptedData);
-      
-
-      if (!streamData || !streamData.url) {
-        throw new Error('No streaming source found');
+      try {
+        const decodedData = atob(responseData.data);
+        const encryptedData = JSON.parse(decodedData);
+        
+        const decryptedData = decryptWithPassword(encryptedData);
+        if (!decryptedData) {
+          throw new Error('Failed to decrypt data');
+        }
+        
+        const streamData = JSON.parse(decryptedData);
+        
+        if (!streamData || !streamData.url) {
+          throw new Error('Invalid stream data format');
+        }
+        
+        return streamData;
+      } catch (decryptError) {
+        console.error('Decryption error:', decryptError);
+        throw new Error('Failed to process stream data');
       }
-      
-      return streamData;
-    } else {
-      if (!responseData || !responseData.url) {
-        throw new Error('No streaming source found');
-      }
-      
+    } else if (responseData && responseData.url) {
       return responseData;
+    } else {
+      throw new Error('No streaming source found in response');
     }
   } catch (error) {
     console.error('Error fetching VidSrc content:', error);
@@ -82,19 +101,28 @@ export async function fetchVidSrcContent(id, episode, season, type) {
 }
 
 function decryptWithPassword(e) {
-  let t = CryptoJS.enc.Hex.parse(e.salt),
-      a = CryptoJS.enc.Hex.parse(e.iv),
-      n = e.encryptedData,
-      l = CryptoJS.PBKDF2(e.key, t, {
-        keySize: 8,
-        iterations: e.iterations,
-        hasher: CryptoJS.algo.SHA256
-      }),
-      o = CryptoJS.AES.decrypt(n, l, {
-        iv: a,
-        padding: CryptoJS.pad.Pkcs7,
-        mode: CryptoJS.mode.CBC
-      }).toString(CryptoJS.enc.Utf8);
-  
-  return o;
+  try {
+    let t = CryptoJS.enc.Hex.parse(e.salt),
+        a = CryptoJS.enc.Hex.parse(e.iv),
+        n = e.encryptedData,
+        l = CryptoJS.PBKDF2(e.key, t, {
+          keySize: 8,
+          iterations: e.iterations,
+          hasher: CryptoJS.algo.SHA256
+        }),
+        o = CryptoJS.AES.decrypt(n, l, {
+          iv: a,
+          padding: CryptoJS.pad.Pkcs7,
+          mode: CryptoJS.mode.CBC
+        });
+    
+    const decrypted = o.toString(CryptoJS.enc.Utf8);
+    if (!decrypted) {
+      throw new Error('Decryption resulted in empty string');
+    }
+    return decrypted;
+  } catch (error) {
+    console.error('Decryption error:', error);
+    return null;
+  }
 }
