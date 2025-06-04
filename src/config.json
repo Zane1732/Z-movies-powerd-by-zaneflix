@@ -1,4 +1,4 @@
 {
-    "proxy": "https://varunaditya.xyz/api/proxy",
-    "m3u8proxy": "https://proxy.varunaditya.xyz"
+    "proxy": "http://localhost:5001/api/proxy",
+    "m3u8proxy": "http://localhost:5001"
 }
