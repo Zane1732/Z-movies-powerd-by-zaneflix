@@ -1,9 +1,5 @@
 export const sources = [
-    {
-      name: 'Native',
-      movieUrl: `/embed/native/{id}/movie`,
-      tvUrl: `/embed/native/{id}/{season}/{episode}/tv`
-    },
+
     {
       name: 'PStream',
       movieUrl: `https://iframe.pstream.org/embed/tmdb-movie-{id}?theme=default&language=en&logo=false&downloads=true&allinone=true&fedapi=false&interface-settings=false&tips=false`,
